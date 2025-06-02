@@ -1,9 +1,9 @@
 ## Features
 * **MIDAS tables** – supports all hourly / daily rain, temperature, weather, wind, radiation & soil temp tables (`RH`, `RD`, `TD`, `WH`, `WD`, `WM`, `RY`, `SH`).  
-* **High-level helpers** – `download_station_year()` for a single station/year, or `download_locations()` to bulk-grab multiple nearest stations for many locations.  
-* **Smart caching** – saves Parquet copies to `data/raw/weather/`.  
-* **Config as YAML** – tweak dataset version, default columns, cache directory, etc. in `weather/settings.yaml`.  
-* **CEDA authentication** – automatically refreshes a bearer token using your `EMAIL` and `CEDA_PWD` env vars.  
+* **Helper functions** – `download_station_year()` for a single station/year, or `download_locations()` to bulk-grab multiple nearest stations for many locations.  
+* **Cashe Location** – current parquet defaults to `data/raw/weather/` (edit in settings).  
+* **Config: YAML** – tweak dataset version, default columns, cache directory, etc. in `weather/settings.yaml`.  
+* **CEDA auth** – automatically gets a bearer token using your `EMAIL` and `CEDA_PWD` env vars.  
 
 ---
 
