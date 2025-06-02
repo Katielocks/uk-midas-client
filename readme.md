@@ -10,7 +10,7 @@
 ## Quick start
 
 ```bash
-pip install git+https://github.com/katielocks/uk-midas-client@v0.1
+pip install git+https://github.com/Katielocks/uk-midas-client.git
 
 export CEDA_EMAIL="me@example.com"
 export CEDA_PWD="••••••••"
