@@ -1,0 +1,61 @@
+from __future__ import annotations
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, List, Any
+import yaml
+
+@dataclass(frozen=True)
+class MidasCfg:
+    version: str
+    tables: Dict[str, str]
+    columns: Dict[str, List[str]]
+
+@dataclass(frozen=True)
+class Settings:
+    cache_dir: Path
+    midas: MidasCfg
+
+def _loadSettings() -> Settings:
+
+    base_dir = Path(__file__).parent
+    settings_path = base_dir / "settings.yaml"
+    if not settings_path.exists():
+        raise FileNotFoundError(f"Cannot find weather/settings.yaml at {settings_path}")
+
+    raw: dict[str, Any] = yaml.safe_load(settings_path.read_text())
+
+    cache_dir_str = raw.get("cache_dir")
+    if not cache_dir_str or not isinstance(cache_dir_str, str):
+        raise RuntimeError("Missing or invalid 'cache_dir' in weather/settings.yaml")
+    
+    midas_dict = raw.get("midas")
+    if not isinstance(midas_dict, dict):
+        raise RuntimeError("Missing or invalid 'midas' section in weather/settings.yaml")
+
+    version = midas_dict.get("version")
+    tables  = midas_dict.get("tables")
+    columns = midas_dict.get("columns")
+
+    if not isinstance(version, str):
+        raise RuntimeError("Missing or invalid 'version' under weather.midas in settings.yaml")
+    if not isinstance(tables, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in tables.items()):
+        raise RuntimeError("Missing or invalid 'tables' mapping under weather.midas in settings.yaml")
+    if not isinstance(columns, dict) or not all(
+        isinstance(k, str) and isinstance(v, list) and all(isinstance(col, str) for col in v)
+        for k, v in columns.items()
+    ):
+        raise RuntimeError("Missing or invalid 'columns' mapping under weather.midas in settings.yaml")
+
+    midas_cfg = MidasCfg(
+        version=version,
+        tables=tables,
+        columns=columns,
+    )
+
+    return Settings(
+        cache_dir=Path(cache_dir_str),
+        midas=midas_cfg,
+    )
+
+
+settings: Settings = _loadSettings()

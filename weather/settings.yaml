@@ -1,0 +1,22 @@
+midas:
+  version: "202407"
+  tables:
+    RH: "uk-hourly-rain-obs"
+    RD: "uk-daily-rain-obs"
+    TD: "uk-daily-temperature-obs"
+    WH: "uk-hourly-weather-obs"
+    WD: "uk-daily-weather-obs"
+    WM: "uk-mean-wind-obs"
+    RY: "uk-radiation-obs"
+    SH: "uk-soil-temperature-obs"
+  columns:
+    RH: []
+    RD: []
+    TD: []
+    WH: []
+    WD: []
+    WM: []
+    RY: []
+    SH: []
+  
+cache_dir: "data/raw/weather"
