@@ -16,7 +16,6 @@ class MidasSession:
 
         self._session = requests.Session()
 
-    # ──────────────────────────────────────────────────────────────────────
     def _refresh_token(self) -> str:
         """(Re)fetch a bearer token and cache it in memory & env."""
         cred = b64encode(f"{self.email}:{self.password}".encode()).decode()
@@ -30,7 +29,6 @@ class MidasSession:
     def token(self) -> str:
         return self._token or self._refresh_token()
 
-    # ──────────────────────────────────────────────────────────────────────
 def get_csv(
         self,
         url: str,

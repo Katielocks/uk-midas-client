@@ -63,7 +63,6 @@ def download_station_year(
         return df
     return df[cols]
 
-# ---------------------------------------------------------------------
 def download_locations(
     locations: pd.DataFrame | dict[str, tuple[float, float]],
     *,
