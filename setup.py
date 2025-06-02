@@ -5,7 +5,7 @@ this_directory = Path(__file__).parent
 long_description = (this_directory / "README.md").read_text(encoding="utf-8")
 
 setuptools.setup(
-    name="uk_midas_client",                    
+    name="midas_client",                    
     version="0.1.0",                 
     author="Katherine Whitelock",
     author_email="ktwhitelock@outlook.com.com",
