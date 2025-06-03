@@ -12,7 +12,7 @@ setuptools.setup(
     description="A Python client for UK Met Office MIDAS via CEDA Archives",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/uk_midas_client",
+    url="https://github.com/katielocks/uk_midas_client",
     packages=setuptools.find_packages(),
     include_package_data=True,
     python_requires=">=3.6",                   
