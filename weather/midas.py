@@ -162,7 +162,7 @@ def download_locations(
                 df_out = pd.concat(frames, ignore_index=True)
                 format = settings.cache_format
                 if out_dir:
-                    _OUTPUT_FUNC[format](df, out_dir / f"{tbl}_{yr}.{format}")
+                    _OUTPUT_FUNC[format](df_out, out_dir / f"{tbl}_{yr}.{format}")
 
     consolidated = pd.DataFrame(rows.values()).sort_values(["loc_id", "year"]).reset_index(drop=True)
 
