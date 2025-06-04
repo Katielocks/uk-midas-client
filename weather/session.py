@@ -1,6 +1,5 @@
 from __future__ import annotations
-import os, time
-import pandas as pd, requests
+import os, time, pandas as pd, requests
 from base64 import b64encode
 
 _CEDA_AUTH_URL = "https://services-beta.ceda.ac.uk/api/token/create/"
@@ -17,7 +16,6 @@ class MidasSession:
         self._session = requests.Session()
 
     def _refresh_token(self) -> str:
-        """(Re)fetch a bearer token and cache it in memory & env."""
         cred = b64encode(f"{self.email}:{self.password}".encode()).decode()
         r = requests.post(_CEDA_AUTH_URL, headers={"Authorization": f"Basic {cred}"})
         r.raise_for_status()
