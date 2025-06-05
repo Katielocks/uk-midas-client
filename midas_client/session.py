@@ -6,11 +6,11 @@ _CEDA_AUTH_URL = "https://services-beta.ceda.ac.uk/api/token/create/"
 
 class MidasSession:
     def __init__(self, email: str | None = None, password: str | None = None):
-        self.email = email or os.getenv("EMAIL")
-        self.password = password or os.getenv("CEDA_PWD")
+        self.email = email or os.getenv("CEDA_USER")
+        self.password = password or os.getenv("CEDA_PASS")
         self._token: str | None = os.getenv("CEDA_TOKEN")
 
-        if not self.email or not self.password:
+        if not self.token and (not self.user or not self.password):
             raise RuntimeError("EMAIL or CEDA_PWD missing")
 
         self._session = requests.Session()
