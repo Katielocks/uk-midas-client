@@ -9,13 +9,19 @@
 ---
 
 ## Quick start
-
 ```bash
 pip install git+https://github.com/Katielocks/uk-midas-client.git
+```
 
+Set your CEDA credentials using either username/password:
+
+```bash
 export CEDA_USER="me@example.com"
 export CEDA_PASS="••••••••"
-'''
-and/or 
+```
+
+**and/or** use a token:
+
 ```bash
 export CEDA_TOKEN="••••••••..."
+```
