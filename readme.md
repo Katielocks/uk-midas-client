@@ -13,5 +13,5 @@
 ```bash
 pip install git+https://github.com/Katielocks/uk-midas-client.git
 
-export CEDA_EMAIL="me@example.com"
-export CEDA_PWD="••••••••"
+export CEDA_USER="me@example.com"
+export CEDA_PASS="••••••••"
