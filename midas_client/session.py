@@ -1,7 +1,7 @@
 from __future__ import annotations
 import os, time, pandas as pd, requests
 from base64 import b64encode
-
+from io import StringIO
 _CEDA_AUTH_URL = "https://services-beta.ceda.ac.uk/api/token/create/"
 
 class MidasSession:
@@ -27,7 +27,7 @@ class MidasSession:
     def token(self) -> str:
         return self._token or self._refresh_token()
 
-def get_csv(
+    def get_csv(
         self,
         url: str,
         *,
@@ -56,7 +56,6 @@ def get_csv(
 
         return pd.DataFrame()
 
-from io import StringIO
 def _read_badc_csv(raw: str, *, sep=",", parse_dates=None) -> pd.DataFrame:
     buf = StringIO(raw)
     for n, line in enumerate(buf):
