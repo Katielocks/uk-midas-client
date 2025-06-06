@@ -29,9 +29,9 @@ def _loadSettings() -> Settings:
     if not cache_dir_str or not isinstance(cache_dir_str, str):
         raise RuntimeError("Missing or invalid 'cache_dir' in settings.json")
     
-    cache_format_str = raw.get("cache_dir")
+    cache_format_str = raw.get("cache_format")
     if not cache_format_str or not isinstance(cache_format_str, str):
-        raise RuntimeError("Missing or invalid 'cache_dir' in settings.json")
+        raise RuntimeError("Missing or invalid 'cache_format' in settings.json")
     
     midas_dict = raw.get("midas")
     if not isinstance(midas_dict, dict):
