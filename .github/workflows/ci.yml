@@ -1,6 +1,6 @@
 name: CI
 
-on: [push,pull_request]
+on: [push, pull_request]
 
 jobs:
   test:
@@ -17,7 +17,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: |
           pip install --upgrade pip
-          pip install .[dev]
+          pip install .[dev] pytest-cov
       - run: python -m pytest --maxfail=1 --disable-warnings -q --cov=midas_client
       - uses: codecov/codecov-action@v4
         with:
