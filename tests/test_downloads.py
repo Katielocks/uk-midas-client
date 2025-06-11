@@ -68,3 +68,5 @@ def test_download_locations(monkeypatch, tmp_cache):
     assert len(out) == 1
     assert out.loc_id.iloc[0] == "here"
     assert out.year.iloc[0] == 2025
+    assert Path(tmp_cache/ "TD_2025.csv").exists()
+    assert Path(tmp_cache/ "station_map.json").exists()

@@ -5,8 +5,8 @@ from io import StringIO
 _CEDA_AUTH_URL = "https://services-beta.ceda.ac.uk/api/token/create/"
 
 class MidasSession:
-    def __init__(self, email: str | None = None, password: str | None = None):
-        self.email = email or os.getenv("CEDA_USER")
+    def __init__(self, user: str | None = None, password: str | None = None):
+        self.user = user or os.getenv("CEDA_USER")
         self.password = password or os.getenv("CEDA_PASS")
         self._token: str | None = os.getenv("CEDA_TOKEN")
 
@@ -16,7 +16,7 @@ class MidasSession:
         self._session = requests.Session()
 
     def _refresh_token(self) -> str:
-        cred = b64encode(f"{self.email}:{self.password}".encode()).decode()
+        cred = b64encode(f"{self.user}:{self.password}".encode()).decode()
         r = requests.post(_CEDA_AUTH_URL, headers={"Authorization": f"Basic {cred}"})
         r.raise_for_status()
         self._token = r.json()["access_token"]

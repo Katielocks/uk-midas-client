@@ -42,14 +42,14 @@ def _loadSettings() -> Settings:
     columns = midas_dict.get("columns")
 
     if not isinstance(version, str):
-        raise RuntimeError("Missing or invalid 'version' under weather.midas in settings.json")
+        raise RuntimeError("Missing or invalid 'version' under midas in settings.json")
     if not isinstance(tables, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in tables.items()):
-        raise RuntimeError("Missing or invalid 'tables' mapping under weather.midas in settings.json")
+        raise RuntimeError("Missing or invalid 'tables' mapping under midas in settings.json")
     if not isinstance(columns, dict) or not all(
         isinstance(k, str) and isinstance(v, list) and all(isinstance(col, str) for col in v)
         for k, v in columns.items()
     ):
-        raise RuntimeError("Missing or invalid 'columns' mapping under weather.midas in settings.json")
+        raise RuntimeError("Missing or invalid 'columns' mapping under midas in settings.json")
 
     midas_cfg = MidasCfg(
         version=version,
