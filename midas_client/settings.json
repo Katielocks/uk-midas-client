@@ -22,6 +22,6 @@
       "SH": []
     }
   },
-  "cache_fornat": "csv",
+  "cache_format": "csv",
   "cache_dir": "data/raw/weather"
 }

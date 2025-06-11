@@ -1,0 +1,6 @@
+numpy==2.3.0
+pandas==2.3.0
+pytest==8.4.0
+Requests==2.32.4
+scikit_learn==1.7.0
+setuptools==80.8.0

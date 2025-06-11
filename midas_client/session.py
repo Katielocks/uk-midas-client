@@ -11,7 +11,7 @@ class MidasSession:
         self._token: str | None = os.getenv("CEDA_TOKEN")
 
         if not self.token and (not self.user or not self.password):
-            raise RuntimeError("EMAIL or CEDA_PWD missing")
+            raise RuntimeError("CEDA_USER or CEDA_PASS missing")
 
         self._session = requests.Session()
 

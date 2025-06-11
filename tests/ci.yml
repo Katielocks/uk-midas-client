@@ -1,0 +1,25 @@
+name: CI
+
+on: [push,pull_request]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-2019, windows-2022]
+        python-version: [3.13]
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: |
+          pip install --upgrade pip
+          pip install .[dev]
+      - run: python -m pytest --maxfail=1 --disable-warnings -q --cov=midas_client
+      - uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: true

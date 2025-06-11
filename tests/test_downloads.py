@@ -1,0 +1,70 @@
+from pathlib import Path
+import types
+import pandas as pd
+
+import midas_client.midas as midas_mod
+
+
+def _fake_get_csv(url: str, *_, **__):
+    if url.endswith("station-metadata.csv"):
+        return pd.DataFrame.from_records([
+            {
+                "src_id": 123,
+                "historic_county": "dummy",
+                "station_file_name": "foo",
+                "station_latitude": 51.0,
+                "station_longitude": -1.0,
+                "first_year": 1900,
+                "last_year": 2100,
+            }
+        ])
+    return pd.DataFrame({
+        "meto_stmp_time": pd.date_range("2025-01-01", periods=2, freq="D"),
+        "obs": [1.1, 2.2],
+    })
+
+
+def _dummy_session(monkeypatch):
+    import midas_client.session as sess_mod
+    monkeypatch.setattr(
+        sess_mod.MidasSession,
+        "_refresh_token",
+        lambda self: "dummy-token",
+        raising=False,
+    )
+    s = sess_mod.MidasSession(email="x", password="y")
+    monkeypatch.setattr(s, "get_csv", _fake_get_csv, raising=True)
+    return s
+
+
+def test_download_station_year(monkeypatch, tmp_cache):
+    session = _dummy_session(monkeypatch)
+
+    df = midas_mod.download_station_year(
+        "TD", station_id="123", year=2025, session=session
+    )
+    assert list(df.columns) == ["meto_stmp_time", "obs"]
+    assert len(df) == 2
+
+
+def test_download_locations(monkeypatch, tmp_cache):
+    session = _dummy_session(monkeypatch)
+
+    locs = pd.DataFrame({
+        "loc_id": ["here"],
+        "lat": [51.001],
+        "long": [-1.001],
+    })
+
+    out = midas_mod.download_locations(
+        locs,
+        years=range(2025, 2026),
+        tables=["TD"],
+        k=1,
+        session=session,
+        out_dir=tmp_cache,
+    )
+
+    assert len(out) == 1
+    assert out.loc_id.iloc[0] == "here"
+    assert out.year.iloc[0] == 2025
