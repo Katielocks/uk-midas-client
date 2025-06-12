@@ -32,7 +32,7 @@ def _dummy_session(monkeypatch):
         lambda self: "dummy-token",
         raising=False,
     )
-    s = sess_mod.MidasSession(email="x", password="y")
+    s = sess_mod.MidasSession(username="x", password="y")
     monkeypatch.setattr(s, "get_csv", _fake_get_csv, raising=True)
     return s
 
