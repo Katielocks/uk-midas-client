@@ -27,7 +27,7 @@ def session(monkeypatch):
         lambda self: "dummy-token",
         raising=False,
     )
-    s = MidasSession(email="x", password="y")
+    s = MidasSession(username="x", password="y")
     s._session = types.SimpleNamespace(get=lambda *args, **kwargs: None)
     return s
 
