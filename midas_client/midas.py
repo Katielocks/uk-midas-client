@@ -80,7 +80,27 @@ def download_station_year(
     columns: list[str] | None = None,
     session: MidasSession | None = None,
 ) -> pd.DataFrame:
-    """Download a single station-year CSV and return a trimmed DataFrame."""
+    """
+    Download data for a single station and year, returning a trimmed DataFrame.
+
+    Parameters
+    ----------
+    table : str
+        Key of the MIDAS table to download (must exist in settings.midas.tables).
+    station_id : str
+        Identifier of the station to download data for.
+    year : int
+        Year of the station data to fetch.
+    columns : list[str], optional
+        Specific columns to retain; defaults to columns from settings.
+    session : MidasSession, optional
+        Active session for HTTP requests; a new session is created if not provided.
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame containing the requested station-year data, limited to specified columns.
+    """
     if table not in settings.midas.tables:
         logger.error("Unknown MIDAS table %s", table)
         raise KeyError(f"Unknown MIDAS table '{table}'")
@@ -125,7 +145,35 @@ def download_locations(
     session: MidasSession | None = None,
     out_dir: str | Path | None = None,
 ) -> pd.DataFrame:
-    """Bulk-download nearest stations for a set of locations and years."""
+    """
+    Bulk-download data for multiple locations and years by finding nearest stations.
+
+    For each location and year, the k nearest active stations for each table are identified,
+    data is downloaded, and a consolidated station map is returned.
+
+    Parameters
+    ----------
+    locations : pd.DataFrame or dict
+        DataFrame with columns ['loc_id', 'lat', 'long'] or dict mapping loc_id to (lat, long).
+    years : range
+        Range of years for which to download data.
+    tables : list[str], optional
+        Subset of table keys to process; defaults to all tables in settings.
+    columns_per_table : dict, optional
+        Mapping from table keys to lists of columns to retain; defaults to settings.
+    k : int
+        Number of nearest stations to consider per location (default is 3).
+    session : MidasSession, optional
+        Active session for HTTP requests; created if not provided.
+    out_dir : str or Path, optional
+        Directory to save downloaded data and metadata; defaults to settings.cache_dir.
+
+    Returns
+    -------
+    pd.DataFrame
+        Consolidated mapping of locations and years to nearest station IDs.
+        Columns include 'loc_id', 'year', and one 'src_id_<table>' per table.
+    """
     logger.info("Starting bulk download for %d years and %d tables",
                 len(years), len(tables or settings.midas.tables))
 
