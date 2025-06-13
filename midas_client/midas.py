@@ -42,7 +42,7 @@ _TABLE_CODES : Dict[str,str] = {
 _OUTPUT_WRITERS: dict[str, Callable[[pd.DataFrame, Path], None]] = {
     "csv":     lambda df, p: df.to_csv(p, index=False),
     "parquet": lambda df, p: df.to_parquet(p, index=False),
-    "json":    lambda df, p: df.to_json(p, orient="records"),
+    "json":    lambda df, p: df.to_json(p, orient="records", indent=2),
 }
 
 def write_cache(cache_path: Union[str, Path], df: pd.DataFrame, mdir: bool = True) -> None:
@@ -106,7 +106,6 @@ def _fetch_meta(session: MidasSession, tbl: str) -> pd.DataFrame:
         logger.debug("Using cached metadata for %s", tbl)
         return _META_CACHE[meta_url]
 
-    logger.info("Fetching metadata for %s from %s", tbl, meta_url)
     meta_df = session.get_csv(meta_url)
 
     if meta_df.empty:
@@ -156,8 +155,8 @@ def download_station_year(
     meta = _fetch_meta(session, table)
     if meta.empty:
         raise RuntimeError("Could not download station metadata")
-
-    row = meta.set_index("src_id").loc[int(station_id)]
+    station_id = station_id.zfill(5)
+    row = meta.set_index("src_id").loc[station_id]
     county = row.historic_county
     fname = row.station_file_name
 
@@ -176,7 +175,11 @@ def download_station_year(
         )
         return df
     if columns:
+        if "src_id" not in columns:
+            columns.insert(0, "src_id")
         df = df[columns]
+    if "src_id" in df.columns:
+        df["src_id"] = df["src_id"].astype("Int64").astype(int).astype(str).str.zfill(5)
     return df
 
 def download_locations(
@@ -280,6 +283,7 @@ def download_locations(
         )
 
         for yr in years:
+            yr = int(yr)
             logger.debug("Finding nearest stations for year %d (table=%s)", yr, tbl)
             good_mask = (meta_num.first_year <= yr) & (meta_num.last_year >= yr)
             if not good_mask.any():
@@ -299,21 +303,24 @@ def download_locations(
                     rows[key]["loc_id"] = loc_id
                     rows[key]["year"] = yr
 
-                nearest_station = str(sub_meta.iloc[idxs[loc_idx, 0]]["src_id"])
-                rows[key][f"src_id_{tbl}"] = nearest_station
+                nearest_station = int(sub_meta.iloc[idxs[loc_idx, 0]]["src_id"])
+                rows[key][f"src_id_{tbl}"] = str(nearest_station).zfill(5)
             logger.debug("Mapped nearest stations for %d locations (yr=%d, tbl=%s)",
                          len(loc_df), yr, tbl)
 
             frames = []
             nearest_srcs = {str(sub_meta.iloc[idx, 0]) for idx in idxs[:, 0]}
             logger.info("Downloading %d station-years for %s in %d", len(nearest_srcs), tbl, yr)
+            cols = None
+            if isinstance(tables,dict):
+                cols = tables[tbl]
 
             for src_id in nearest_srcs:
                 df = download_station_year(
                     tbl,
                     src_id,
                     yr,
-                    columns=tables[tbl],
+                    columns=cols,
                     session=session,
                 )
                 if not df.empty:
@@ -328,6 +335,6 @@ def download_locations(
     consolidated = pd.DataFrame(rows.values()).sort_values(["loc_id", "year"]).reset_index(drop=True)
     if not consolidated.empty:
         json_path = out_dir / "station_map.json"
-        logger.info("Writing consolidated station map to %s", json_path)
+        logger.info("Writing station map to %s", json_path)
         write_cache(json_path,consolidated)
     return consolidated

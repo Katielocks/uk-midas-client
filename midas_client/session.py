@@ -58,7 +58,6 @@ class MidasSession:
         max_retries: int = 3,
         backoff_factor: float = 1.0,
     ) -> pd.DataFrame:
-        logger.info(f"Fetching CSV from {url}")
         headers = {"Authorization": f"Bearer {self.token}"}
         attempt = 0
         while attempt < max_retries:
@@ -71,7 +70,6 @@ class MidasSession:
                     return pd.DataFrame()
                 response.raise_for_status()
                 df = _read_badc_csv(response.text, sep=sep, parse_dates=parse_dates)
-                logger.info(f"Successfully fetched CSV from {url}, rows: {len(df)}, cols: {len(df.columns)}")
                 return df
             except requests.exceptions.RequestException as exc:
                 logger.warning(f"RequestException on attempt {attempt}: {exc}")
@@ -85,7 +83,6 @@ class MidasSession:
         return pd.DataFrame()
 
 def _read_badc_csv(raw: str, *, sep=",", parse_dates=None) -> pd.DataFrame:
-    logger.info("Parsing BADC CSV content")
     buf = StringIO(raw)
     for n, line in enumerate(buf):
         if line.strip().lower() == "data":
@@ -105,5 +102,4 @@ def _read_badc_csv(raw: str, *, sep=",", parse_dates=None) -> pd.DataFrame:
                     on_bad_lines="warn")
         .iloc[:-1]
     )
-    logger.info(f"Parsed DataFrame with shape {df.shape}")
     return df
