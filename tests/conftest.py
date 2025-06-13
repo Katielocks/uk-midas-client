@@ -38,8 +38,7 @@ def _patch_settings(monkeypatch, tmp_cache):
         cache_dir=tmp_cache,
         midas=SimpleNamespace(
             version="202407",
-            tables={"TD": "uk-daily-temperature-obs"},
-            columns={"TD": []},
+            tables={"TD": []},
         ),
     )
     import midas_client.midas as midas_mod

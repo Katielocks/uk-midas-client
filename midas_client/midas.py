@@ -151,7 +151,7 @@ def download_station_year(
         raise KeyError(f"Unknown MIDAS table '{table}'")
 
     session = session or MidasSession()
-    version = cfg.midas.version
+    version = cfg.version
 
     meta = _fetch_meta(session, table)
     if meta.empty:
@@ -326,7 +326,7 @@ def download_locations(
                     write_cache(out_dir / f"{tbl}_{yr}.{format}",df_out)
 
     consolidated = pd.DataFrame(rows.values()).sort_values(["loc_id", "year"]).reset_index(drop=True)
-    if not consolidated.empty():
+    if not consolidated.empty:
         json_path = out_dir / "station_map.json"
         logger.info("Writing consolidated station map to %s", json_path)
         write_cache(json_path,consolidated)

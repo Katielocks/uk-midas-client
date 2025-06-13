@@ -59,7 +59,7 @@ def test_download_locations(monkeypatch, tmp_cache):
     out = midas_mod.download_locations(
         locs,
         years=range(2025, 2026),
-        tables=["TD"],
+        tables={"TD":[]},
         k=1,
         session=session,
         out_dir=tmp_cache,
