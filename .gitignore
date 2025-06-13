@@ -5,5 +5,5 @@ test.py
 data/
 build/
 dist/
-midas_client.egg-info
+uk_midas_client.egg-info
 

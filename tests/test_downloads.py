@@ -2,7 +2,7 @@ from pathlib import Path
 import types
 import pandas as pd
 
-import midas_client.midas as midas_mod
+import src.midas as midas_mod
 
 
 def _fake_get_csv(url: str, *_, **__):
@@ -25,7 +25,7 @@ def _fake_get_csv(url: str, *_, **__):
 
 
 def _dummy_session(monkeypatch):
-    import midas_client.session as sess_mod
+    import src.session as sess_mod
     monkeypatch.setattr(
         sess_mod.MidasSession,
         "_refresh_token",

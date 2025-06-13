@@ -11,7 +11,7 @@
 
 ## Quick start
 ```bash
-pip install git+https://github.com/Katielocks/uk-midas-client.git
+pip install uk-midas-client
 ```
 
 Set your CEDA credentials using either username/password:

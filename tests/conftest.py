@@ -41,7 +41,7 @@ def _patch_settings(monkeypatch, tmp_cache):
             tables={"TD": []},
         ),
     )
-    import midas_client.midas as midas_mod
+    import src.midas as midas_mod
 
     monkeypatch.setattr(midas_mod, "settings", dummy, raising=False)
 
@@ -58,6 +58,6 @@ class _DummyTree:
 
 @pytest.fixture(autouse=True)
 def _patch_balltree(monkeypatch):
-    import midas_client.midas as midas_mod
+    import src.midas as midas_mod
 
     monkeypatch.setattr(midas_mod, "BallTree", _DummyTree, raising=False)

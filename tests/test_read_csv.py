@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from midas_client.session import _read_badc_csv
+from src.session import _read_badc_csv
 
 
 def test_parses_simple_csv(raw_badc_csv):
