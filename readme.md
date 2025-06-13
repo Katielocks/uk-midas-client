@@ -13,6 +13,9 @@
 ```bash
 pip install uk-midas-client
 ```
+```python
+from midas_client import download_station_year
+```
 
 Set your CEDA credentials using either username/password:
 

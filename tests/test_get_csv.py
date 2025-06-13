@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 import requests
 
-from src.session import MidasSession, _read_badc_csv
+from midas_client.session import MidasSession, _read_badc_csv
 
 
 class _StubResponse(requests.Response):
@@ -20,7 +20,7 @@ class _StubResponse(requests.Response):
 
 @pytest.fixture
 def session(monkeypatch):
-    import src.session as sess_mod
+    import midas_client.session as sess_mod
     monkeypatch.setattr(
         sess_mod.MidasSession,
         "_refresh_token",
