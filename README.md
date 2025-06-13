@@ -15,6 +15,7 @@ pip install uk-midas-client
 ```
 ```python
 from midas_client import download_station_year
+from midas_client import download_station_year, download_locations
 ```
 
 Set your CEDA credentials using either username/password:
@@ -28,6 +29,31 @@ export CEDA_PASS="••••••••"
 
 ```bash
 export CEDA_TOKEN="••••••••..."
+```
+
+### Fetch a single station-year
+
+```python
+df = download_station_year("TD", station_id="03743", year=2020)
+print(df.head())
+```
+
+### Bulk download nearest stations
+
+```python
+import pandas as pd
+
+locs = pd.DataFrame({
+    "loc_id": ["here"],
+    "lat": [51.5],
+    "long": [-0.1],
+})
+
+station_map = download_locations(
+    locs,
+    years=range(2021, 2022),
+    tables={"TD": ["max_air_temp","min_air_temp"]}
+)
 ```
 ## Status
 This project is currently in a pre-1.0 prototype stage and may change without notice.
