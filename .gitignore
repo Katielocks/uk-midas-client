@@ -3,3 +3,7 @@
 *.csv
 test.py
 data/
+build/
+dist/
+midas_client.egg-info
+
