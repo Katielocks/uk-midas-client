@@ -9,7 +9,7 @@ def _fake_get_csv(url: str, *_, **__):
     if url.endswith("station-metadata.csv"):
         return pd.DataFrame.from_records([
             {
-                "src_id": lambda x: f"{int(x):05d}",
+                "src_id": "123".zfill(5),
                 "historic_county": "dummy",
                 "station_file_name": "foo",
                 "station_latitude": 51.0,
