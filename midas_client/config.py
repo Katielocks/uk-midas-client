@@ -7,8 +7,7 @@ import json
 @dataclass(frozen=True)
 class MidasCfg:
     version: str
-    tables: Dict[str, str]
-    columns: Dict[str, List[str]]
+    tables: Dict[str, List[str]]
 
 @dataclass(frozen=True)
 class Settings:
@@ -43,18 +42,18 @@ def _loadSettings() -> Settings:
 
     if not isinstance(version, str):
         raise RuntimeError("Missing or invalid 'version' under midas in settings.json")
-    if not isinstance(tables, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in tables.items()):
-        raise RuntimeError("Missing or invalid 'tables' mapping under midas in settings.json")
-    if not isinstance(columns, dict) or not all(
-        isinstance(k, str) and isinstance(v, list) and all(isinstance(col, str) for col in v)
-        for k, v in columns.items()
+    if not isinstance(tables, dict) \
+    or not all(
+        isinstance(k, str)                          
+        and isinstance(v, list)                    
+        and all(isinstance(col, str) for col in v)  
+        for k, v in tables.items()
     ):
-        raise RuntimeError("Missing or invalid 'columns' mapping under midas in settings.json")
+        raise RuntimeError("Missing or invalid 'tables' mapping under midas in settings.json")
 
     midas_cfg = MidasCfg(
         version=version,
-        tables=tables,
-        columns=columns,
+        tables=tables
     )
 
     return Settings(

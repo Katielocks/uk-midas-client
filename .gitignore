@@ -1,1 +1,4 @@
 *.pyc
+.env
+*.csv
+test.py

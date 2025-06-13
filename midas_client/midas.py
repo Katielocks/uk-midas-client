@@ -2,7 +2,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 from collections import defaultdict
-from typing import Callable,Union
+from typing import Callable,Union,Dict
 import numpy as np
 import pandas as pd
 from sklearn.neighbors import BallTree
@@ -11,6 +11,8 @@ from .config import settings
 from .session import MidasSession
 
 logger = logging.getLogger(__name__)
+cfg = settings.midas
+
 
 if not logger.hasHandlers():
     _h = logging.StreamHandler()
@@ -26,6 +28,16 @@ if not logger.hasHandlers():
 _BASE_URL = "https://dap.ceda.ac.uk/badc/ukmo-midas-open/data"
 _META_FMT = "midas-open_{db}_dv-{ver}_station-metadata.csv"
 _META_CACHE: dict[str, pd.DataFrame] = {}
+_TABLE_CODES : Dict[str,str] = {
+      "RH": "uk-hourly-rain-obs",
+      "RD": "uk-daily-rain-obs",
+      "TD": "uk-daily-temperature-obs",
+      "WH": "uk-hourly-weather-obs",
+      "WD": "uk-daily-weather-obs",
+      "WM": "uk-mean-wind-obs",
+      "RY": "uk-radiation-obs",
+      "SH": "uk-soil-temperature-obs"
+    }
 
 _OUTPUT_WRITERS: dict[str, Callable[[pd.DataFrame, Path], None]] = {
     "csv":     lambda df, p: df.to_csv(p, index=False),
@@ -76,15 +88,15 @@ def _fetch_meta(session: MidasSession, tbl: str) -> pd.DataFrame:
         Active ``MidasSession`` used for HTTP requests.
     tbl
         table key looked up in
-        ``settings.midas.tables``.
+        ``_TABLE_CODES``.
 
     Returns
     -------
     pandas.DataFrame
         The midas station metadata contains date of service and location of all stations, given tbl code.
     """
-    db_slug = settings.midas.tables[tbl]
-    version = settings.midas.version
+    db_slug = _TABLE_CODES[tbl]
+    version = cfg.version
     meta_url = (
         f"{_BASE_URL}/{db_slug}/dataset-version-{version}/"
         f"{_META_FMT.format(db=db_slug, ver=version)}"
@@ -119,7 +131,7 @@ def download_station_year(
     Parameters
     ----------
     table : str
-        Key of the MIDAS table to download (must exist in settings.midas.tables).
+        Key of the MIDAS table to download (must exist in _TABLE_CODES).
     station_id : str
         Identifier of the station to download data for.
     year : int
@@ -134,13 +146,12 @@ def download_station_year(
     pd.DataFrame
         DataFrame containing the requested station-year data, limited to specified columns.
     """
-    if table not in settings.midas.tables:
+    if table not in _TABLE_CODES:
         logger.error("Unknown MIDAS table %s", table)
         raise KeyError(f"Unknown MIDAS table '{table}'")
 
     session = session or MidasSession()
-    version = settings.midas.version
-    cols = columns or settings.midas.columns[table]
+    version = cfg.midas.version
 
     meta = _fetch_meta(session, table)
     if meta.empty:
@@ -151,9 +162,9 @@ def download_station_year(
     fname = row.station_file_name
 
     data_url = (
-        f"{_BASE_URL}/{settings.midas.tables[table]}/dataset-version-{version}/"
+        f"{_BASE_URL}/{_TABLE_CODES[table]}/dataset-version-{version}/"
         f"{county}/{station_id}_{fname}/qc-version-1/"
-        f"midas-open_{settings.midas.tables[table]}_dv-{version}_{county}_"
+        f"midas-open_{_TABLE_CODES[table]}_dv-{version}_{county}_"
         f"{station_id}_{fname}_qcv-1_{year}.csv"
     )
 
@@ -164,19 +175,18 @@ def download_station_year(
             "No data for table=%s, station=%s, year=%d", table, station_id, year
         )
         return df
-    if cols:
-        df = df[cols]
+    if columns:
+        df = df[columns]
     return df
 
 def download_locations(
     locations: pd.DataFrame | dict[str, tuple[float, float]],
     *,
     years: range,
-    tables: list[str] | None = None,
-    columns_per_table: dict[str, list[str]] | None = None,
+    tables: dict[str, list[str] ]  = cfg.tables,
     k: int = 3,
     session: MidasSession | None = None,
-    out_dir: str | Path | None = None,
+    out_dir: str | Path | None = settings.cache_dir,
 ) -> pd.DataFrame:
     """
     Bulk-download data for multiple locations and years by finding nearest stations.
@@ -208,11 +218,9 @@ def download_locations(
         Columns include 'loc_id', 'year', and one 'src_id_<table>' per table.
     """
     logger.info("Starting bulk download for %d years and %d tables",
-                len(years), len(tables or settings.midas.tables))
+                len(years), len(tables or _TABLE_CODES))
 
     session = session or MidasSession()
-    tables = tables or list(settings.midas.tables)
-    cols_cfg = columns_per_table or settings.midas.columns
 
     out_dir = Path(out_dir or settings.cache_dir).expanduser()
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -226,7 +234,18 @@ def download_locations(
             }
         )
     else:
-        loc_df = locations.copy()
+        if not isinstance(locations, pd.DataFrame):
+            raise TypeError(
+                "`locations` must be a pandas DataFrame or a dict; got "
+                f"{type(locations).__name__}."
+            )
+        if locations.shape[1] < 3:
+            raise ValueError(
+                "`locations` DataFrame must have at least 3 columns representing "
+                "loc_id, lat and long respectively."
+            )
+        loc_df = locations.iloc[:, :3].copy()
+        loc_df.columns = ["loc_id", "lat", "long"]
 
     if loc_df.empty:
         logger.error("`locations` is empty – nothing to download.")
@@ -239,8 +258,8 @@ def download_locations(
 
     for tbl in tables:
         logger.info("Processing table '%s'", tbl)
-        db_slug = settings.midas.tables[tbl]
-        version = settings.midas.version
+        db_slug = _TABLE_CODES[tbl]
+        version = cfg.version
         meta_url = (
             f"{_BASE_URL}/{db_slug}/dataset-version-{version}/"
             f"{_META_FMT.format(db=db_slug, ver=version)}"
@@ -294,7 +313,7 @@ def download_locations(
                     tbl,
                     src_id,
                     yr,
-                    columns=cols_cfg[tbl],
+                    columns=tables[tbl],
                     session=session,
                 )
                 if not df.empty:
