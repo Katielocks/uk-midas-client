@@ -2,7 +2,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 from collections import defaultdict
-from typing import Callable
+from typing import Callable,Union
 import numpy as np
 import pandas as pd
 from sklearn.neighbors import BallTree
@@ -27,12 +27,45 @@ _BASE_URL = "https://dap.ceda.ac.uk/badc/ukmo-midas-open/data"
 _META_FMT = "midas-open_{db}_dv-{ver}_station-metadata.csv"
 _META_CACHE: dict[str, pd.DataFrame] = {}
 
-_OUTPUT_FUNC: dict[str, Callable] = {
-    "csv": pd.DataFrame.to_csv,
-    "parquet": pd.DataFrame.to_parquet,
-    "json": pd.DataFrame.to_json,
-    "excel": pd.DataFrame.to_excel,
+_OUTPUT_WRITERS: dict[str, Callable[[pd.DataFrame, Path], None]] = {
+    "csv":     lambda df, p: df.to_csv(p, index=False),
+    "parquet": lambda df, p: df.to_parquet(p, index=False),
+    "json":    lambda df, p: df.to_json(p, orient="records"),
 }
+
+def write_cache(cache_path: Union[str, Path], df: pd.DataFrame, mdir: bool = True) -> None:
+    cache_path = Path(cache_path)
+    if not isinstance(df, pd.DataFrame):
+        raise TypeError(
+            f"Expected a pandas DataFrame to write, got {type(df)}."
+        )
+    parent = cache_path.parent
+    if mdir:
+        parent.mkdir(parents=True, exist_ok=True)
+    else:
+        if not parent.exists():
+            raise FileNotFoundError(f"Directory '{parent}' does not exist.")
+        if not parent.is_dir():
+            raise ValueError(f"Parent path '{parent}' is not a directory.")
+    cache_fmt = cache_path.suffix.lstrip(".").lower()
+    if not cache_fmt:
+        raise ValueError(
+            f"No file extension found for '{cache_path}'."
+            f" Choose one of {list(_OUTPUT_WRITERS.keys())}."
+        )
+    if cache_fmt not in _OUTPUT_WRITERS:
+        raise ValueError(
+            f"Unsupported output format '{cache_fmt}'."
+            f" Supported formats are: {list(_OUTPUT_WRITERS.keys())}."
+        )
+    try:
+        _OUTPUT_WRITERS[cache_fmt](df, cache_path)
+    except Exception as e:
+        raise IOError(
+            f"Failed to write DataFrame to '{cache_path}' as {cache_fmt}: {e}"
+        ) from e
+
+
 
 def _fetch_meta(session: MidasSession, tbl: str) -> pd.DataFrame:
     """Download station metadata for *tbl*, with an in-memory cache.
@@ -271,13 +304,11 @@ def download_locations(
                 df_out = pd.concat(frames, ignore_index=True)
                 format = settings.cache_format
                 if out_dir:
-                    file_path = out_dir / f"{tbl}_{yr}.{format}"
-                    logger.info("Saving %s (%d rows) to %s", tbl, len(df_out), file_path)
-                    _OUTPUT_FUNC[format](df_out, file_path)
+                    write_cache(out_dir / f"{tbl}_{yr}.{format}",df_out)
 
     consolidated = pd.DataFrame(rows.values()).sort_values(["loc_id", "year"]).reset_index(drop=True)
-
-    json_path = out_dir / "station_map.json"
-    logger.info("Writing consolidated station map to %s", json_path)
-    consolidated.to_json(json_path, orient="records", indent=2)
+    if not consolidated.empty():
+        json_path = out_dir / "station_map.json"
+        logger.info("Writing consolidated station map to %s", json_path)
+        write_cache(json_path,consolidated)
     return consolidated
