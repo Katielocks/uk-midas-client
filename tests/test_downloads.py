@@ -9,7 +9,7 @@ def _fake_get_csv(url: str, *_, **__):
     if url.endswith("station-metadata.csv"):
         return pd.DataFrame.from_records([
             {
-                "src_id": 123,
+                "src_id": lambda x: f"{int(x):05d}",
                 "historic_county": "dummy",
                 "station_file_name": "foo",
                 "station_latitude": 51.0,
@@ -41,7 +41,7 @@ def test_download_station_year(monkeypatch, tmp_cache):
     session = _dummy_session(monkeypatch)
 
     df = midas_mod.download_station_year(
-        "TD", station_id="123", year=2025, session=session
+        "TD", station_id="00123", year=2025, session=session
     )
     assert list(df.columns) == ["meto_stmp_time", "obs"]
     assert len(df) == 2
