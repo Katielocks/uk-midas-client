@@ -14,7 +14,7 @@ if requirements_path.exists():
 
 setuptools.setup(
     name="uk-midas-client",                    
-    version="0.51",                                                      
+    version="0.53",                                                      
     author="Katherine Whitelock",
     author_email="ktwhitelock@outlook.com",
     description="A Python client for UK Met Office MIDAS via CEDA Archives",
