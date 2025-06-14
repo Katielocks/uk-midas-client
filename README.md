@@ -39,7 +39,18 @@ print(df.head())
 
 ### Bulk download nearest stations
 
-Given a dataframe of ids and their latitudes and longitudes, this calculates the `k` nearest MIDAS stations with that observation table type eg. `RH` to the location, and attempts to download them. if a station,year dataset is missing, it attempts the next nearest station. 
+Given a DataFrame containing observation IDs with associated latitude and longitude coordinates, the algorithm:
+
+1. Identifies the **k-nearest MIDAS stations** for each observation location that support a specified observation type (e.g., Rain Hourly —`RH`).
+
+2. Attempts to download the corresponding datasets (by station and year), prioritizing proximity.
+
+3. Implements a fallback mechanism:
+   - If a dataset for the nearest observation-station–year combination is unavailable, it sequentially attempts downloads from the next-nearest stations until either:
+     - A valid dataset is retrieved, or
+     - All **k** nearest stations have been attempted unsuccessfully.
+
+returns cache files as `obs`_`year` in cache_dir, with a `station_map.json` mapping `src_ids` for each obs to each location code
 
 ```python
 import pandas as pd
