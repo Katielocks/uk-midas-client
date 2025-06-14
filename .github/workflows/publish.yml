@@ -1,0 +1,41 @@
+name: Publish to PyPI
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install --upgrade pip setuptools setuptools-scm
+
+      - name: Check version matches Git tag
+        env:
+          GITHUB_REF: ${{ github.ref }}
+        run: |
+          # Extract tag (e.g. "v0.5.31" → "0.5.31")
+          TAG="${GITHUB_REF#refs/tags/v}"
+          # Extract your package version
+          PKG_VER=$(python -c "import uk_midas_client; print(uk_midas_client.__version__)")
+          echo "Git tag: $TAG, package version: $PKG_VER"
+          if [ "$TAG" != "$PKG_VER" ]; then
+            echo "::error ::Version mismatch! Tag is $TAG but package is $PKG_VER"
+            exit 1
+          fi
+
+      - name: Build and publish
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
