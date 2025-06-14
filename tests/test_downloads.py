@@ -63,6 +63,7 @@ def test_download_locations(monkeypatch, tmp_cache):
         k=1,
         session=session,
         out_dir=tmp_cache,
+        out_fmt="csv"
     )
 
     assert len(out) == 1

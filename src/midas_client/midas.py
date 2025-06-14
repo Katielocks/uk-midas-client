@@ -9,21 +9,7 @@ from sklearn.neighbors import BallTree
 
 from .config import settings
 from .session import MidasSession
-
-logger = logging.getLogger(__name__)
-cfg = settings.midas
-
-
-if not logger.hasHandlers():
-    _h = logging.StreamHandler()
-    _h.setFormatter(
-        logging.Formatter(
-            fmt="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
-        )
-    )
-    logger.addHandler(_h)
-    logger.setLevel(logging.INFO)
+from .io import write_cache
 
 _BASE_URL = "https://dap.ceda.ac.uk/badc/ukmo-midas-open/data"
 _META_FMT = "midas-open_{db}_dv-{ver}_station-metadata.csv"
@@ -39,45 +25,21 @@ _TABLE_CODES : Dict[str,str] = {
       "SH": "uk-soil-temperature-obs"
     }
 
-_OUTPUT_WRITERS: dict[str, Callable[[pd.DataFrame, Path], None]] = {
-    "csv":     lambda df, p: df.to_csv(p, index=False),
-    "parquet": lambda df, p: df.to_parquet(p, index=False),
-    "json":    lambda df, p: df.to_json(p, orient="records", indent=2),
-}
 
-def write_cache(cache_path: Union[str, Path], df: pd.DataFrame, mdir: bool = True) -> None:
-    cache_path = Path(cache_path)
-    if not isinstance(df, pd.DataFrame):
-        raise TypeError(
-            f"Expected a pandas DataFrame to write, got {type(df)}."
-        )
-    parent = cache_path.parent
-    if mdir:
-        parent.mkdir(parents=True, exist_ok=True)
-    else:
-        if not parent.exists():
-            raise FileNotFoundError(f"Directory '{parent}' does not exist.")
-        if not parent.is_dir():
-            raise ValueError(f"Parent path '{parent}' is not a directory.")
-    cache_fmt = cache_path.suffix.lstrip(".").lower()
-    if not cache_fmt:
-        raise ValueError(
-            f"No file extension found for '{cache_path}'."
-            f" Choose one of {list(_OUTPUT_WRITERS.keys())}."
-        )
-    if cache_fmt not in _OUTPUT_WRITERS:
-        raise ValueError(
-            f"Unsupported output format '{cache_fmt}'."
-            f" Supported formats are: {list(_OUTPUT_WRITERS.keys())}."
-        )
-    try:
-        _OUTPUT_WRITERS[cache_fmt](df, cache_path)
-    except Exception as e:
-        raise IOError(
-            f"Failed to write DataFrame to '{cache_path}' as {cache_fmt}: {e}"
-        ) from e
+logger = logging.getLogger(__name__)
+cfg = settings.midas
 
 
+if not logger.hasHandlers():
+    _h = logging.StreamHandler()
+    _h.setFormatter(
+        logging.Formatter(
+            fmt="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+    )
+    logger.addHandler(_h)
+    logger.setLevel(logging.INFO)
 
 def _fetch_meta(session: MidasSession, tbl: str) -> pd.DataFrame:
     """Download station metadata for *tbl*, with an in-memory cache.
@@ -190,7 +152,8 @@ def download_locations(
     k: int = 3,
     session: MidasSession | None = None,
     out_dir: str | Path | None = settings.cache_dir,
-) -> pd.DataFrame:
+    out_fmt: str | None = settings.cache_format
+) -> pd.DataFrame | list[pd.DataFrame,list[pd.DataFrame,pd.DataFrame]]:
     """
     Bulk-download data for multiple locations and years by finding nearest stations.
 
@@ -204,15 +167,15 @@ def download_locations(
     years : range
         Range of years for which to download data.
     tables : list[str], optional
-        Subset of table keys to process; defaults to all tables in settings.
-    columns_per_table : dict, optional
-        Mapping from table keys to lists of columns to retain; defaults to settings.
+        Subset of observation table keys to process; defaults to all tables in settings.
     k : int
         Number of nearest stations to consider per location (default is 3).
     session : MidasSession, optional
         Active session for HTTP requests; created if not provided.
     out_dir : str or Path, optional
         Directory to save downloaded data and metadata; defaults to settings.cache_dir.
+    out_fmt : str, optional
+        File format of cached data; defaults to setting.cache_format
 
     Returns
     -------
@@ -225,8 +188,11 @@ def download_locations(
 
     session = session or MidasSession()
 
-    out_dir = Path(out_dir or settings.cache_dir).expanduser()
-    out_dir.mkdir(parents=True, exist_ok=True)
+    if out_dir :
+        out_dir = Path(out_dir).expanduser()
+        out_dir.mkdir(parents=True, exist_ok=True)
+        if not out_fmt:
+            raise ValueError(f"No file extension found for '{out_dir}'.")
 
     if isinstance(locations, dict):
         loc_df = pd.DataFrame(
@@ -258,7 +224,7 @@ def download_locations(
     locs_rad = np.deg2rad(loc_df[["lat", "long"]].values)
 
     rows: dict[tuple[str, int], dict[str, object]] = defaultdict(dict)
-
+    outputs = []
     for tbl in tables:
         logger.info("Processing table '%s'", tbl)
         db_slug = _TABLE_CODES[tbl]
@@ -325,16 +291,18 @@ def download_locations(
                 )
                 if not df.empty:
                     frames.append(df)
-
             if frames:
                 df_out = pd.concat(frames, ignore_index=True)
-                format = settings.cache_format
                 if out_dir:
-                    write_cache(out_dir / f"{tbl}_{yr}.{format}",df_out)
+                    write_cache(out_dir / f"{tbl}_{yr}.{out_fmt}",df_out)
+                else:
+                    outputs.append(df_out) 
 
     consolidated = pd.DataFrame(rows.values()).sort_values(["loc_id", "year"]).reset_index(drop=True)
-    if not consolidated.empty:
+    if not consolidated.empty and out_dir:
         json_path = out_dir / "station_map.json"
         logger.info("Writing station map to %s", json_path)
         write_cache(json_path,consolidated)
-    return consolidated
+        return consolidated
+    else:
+        return consolidated,outputs

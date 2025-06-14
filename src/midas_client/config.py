@@ -38,7 +38,6 @@ def _loadSettings() -> Settings:
 
     version = midas_dict.get("version")
     tables  = midas_dict.get("tables")
-    columns = midas_dict.get("columns")
 
     if not isinstance(version, str):
         raise RuntimeError("Missing or invalid 'version' under midas in settings.json")
