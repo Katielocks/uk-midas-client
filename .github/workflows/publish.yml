@@ -19,7 +19,8 @@ jobs:
 
       - name: Install dependencies
         run: pip install --upgrade pip setuptools setuptools-scm
-
+      - name: Install package
+        run: pip install .
       - name: Check version matches Git tag
         env:
           GITHUB_REF: ${{ github.ref }}
@@ -27,7 +28,7 @@ jobs:
           # Extract tag (e.g. "v0.5.31" → "0.5.31")
           TAG="${GITHUB_REF#refs/tags/v}"
           # Extract your package version
-          PKG_VER=$(python -c "import midas_client; print(midas_client.__version__)")
+          PKG_VER=$(python -c "import importlib.metadata as m; print(m.version('uk-midas-client'))")
           echo "Git tag: $TAG, package version: $PKG_VER"
           if [ "$TAG" != "$PKG_VER" ]; then
             echo "::error ::Version mismatch! Tag is $TAG but package is $PKG_VER"
