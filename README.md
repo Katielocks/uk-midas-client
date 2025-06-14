@@ -14,7 +14,6 @@
 pip install uk-midas-client
 ```
 ```python
-from midas_client import download_station_year
 from midas_client import download_station_year, download_locations
 ```
 
@@ -39,6 +38,8 @@ print(df.head())
 ```
 
 ### Bulk download nearest stations
+
+Given a dataframe of ids and their latitudes and longitudes, this calculates the `k` nearest MIDAS stations with that observation table type eg. `RH` to the location, and attempts to download them. if a station,year dataset is missing, it attempts the next nearest station. 
 
 ```python
 import pandas as pd
