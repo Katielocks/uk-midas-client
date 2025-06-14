@@ -20,7 +20,7 @@ jobs:
       - name: Install dependencies
         run: pip install --upgrade pip setuptools setuptools-scm
       - name: Install package
-        run: pip install .
+        run: pip install --no-deps .
       - name: Check version matches Git tag
         env:
           GITHUB_REF: ${{ github.ref }}
