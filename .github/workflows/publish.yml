@@ -25,7 +25,6 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install build setuptools-scm
 
-      # ▶ Install *just* the package itself so we can query its metadata
       - name: Install package
         run: python -m pip install --no-deps .
 
