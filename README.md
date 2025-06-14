@@ -37,20 +37,36 @@ df = download_station_year("TD", station_id="03743", year=2020)
 print(df.head())
 ```
 
-### Bulk download nearest stations
+### Bulk Download Nearest Stations
 
-Given a DataFrame containing observation IDs with associated latitude and longitude coordinates, the algorithm:
+Given a DataFrame containing observation locations with associated latitude and longitude coordinates, the algorithm:
 
-1. Identifies the **k-nearest MIDAS stations** for each observation location that support a specified observation type (e.g., Rain Hourly —`RH`).
+1. **Identifies the nearest MIDAS stations**:
 
-2. Attempts to download the corresponding datasets (by station and year), prioritizing proximity.
+   * Finds the **k-nearest MIDAS stations** for each observation location that support a specified observation type (e.g., Rain Hourly — `RH`).
 
-3. Implements a fallback mechanism:
-   - If a dataset for the nearest observation-station–year combination is unavailable, it sequentially attempts downloads from the next-nearest stations until either:
-     - A valid dataset is retrieved, or
-     - All **k** nearest stations have been attempted unsuccessfully.
+2. **Downloads datasets**:
 
-returns cache files as `obs`_`year` in cache_dir, with a `station_map.json` mapping `src_ids` for each obs to each location code
+   * Attempts to download datasets for each station-year combination, prioritizing nearest stations.
+
+3. **Fallback mechanism**:
+
+   * If a dataset for the closest station-year combination is unavailable, the algorithm sequentially attempts downloads from the next nearest stations until either:
+
+     * A valid dataset is successfully retrieved, or
+     * All **k** nearest stations have been attempted unsuccessfully.
+
+### Caching and Output Structure
+
+The resulting datasets are stored in a specified cache directory (`cache_dir`), following the naming convention:
+
+```
+{obs}_{year}.{fmt}
+```
+
+Additionally, the process generates a JSON mapping file (`station_map.json`) within `cache_dir`. This file maps each observation location's input `loc_id` to the corresponding downloaded station identifiers.
+
+### Example Usage
 
 ```python
 import pandas as pd
@@ -64,7 +80,7 @@ locs = pd.DataFrame({
 station_map = download_locations(
     locs,
     years=range(2021, 2022),
-    tables={"TD": ["max_air_temp","min_air_temp"]}
+    tables={"TD": ["max_air_temp", "min_air_temp"]}
 )
 ```
 ## Status
