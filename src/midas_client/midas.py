@@ -146,13 +146,13 @@ def download_station_year(
 
 def download_locations(
     locations: pd.DataFrame | dict[str, tuple[float, float]],
-    *,
     years: range,
     tables: dict[str, list[str] ]  = cfg.tables,
+    *,
     k: int = 3,
-    session: MidasSession | None = None,
     out_dir: str | Path | None = settings.cache_dir,
-    out_fmt: str | None = settings.cache_format
+    out_fmt: str | None = settings.cache_format,
+    session: MidasSession | None = None
 ) -> pd.DataFrame | list[pd.DataFrame,list[pd.DataFrame,pd.DataFrame]]:
     """
     Bulk-download data for multiple locations and years by finding nearest stations.
