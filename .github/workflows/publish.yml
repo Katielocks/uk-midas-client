@@ -3,7 +3,11 @@ name: Publish to PyPI
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - 'v*.*.*'        # run only when a version tag is pushed (e.g. v1.2.3)
+
+permissions:
+  id-token: write      
+  contents: read       
 
 jobs:
   build:
@@ -17,26 +21,27 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install dependencies
-        run: pip install --upgrade pip setuptools setuptools-scm
-      - name: Install package
-        run: pip install --no-deps .
+      - name: Install build tooling
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build
+
+      # Optional: make sure the package’s __version__ matches the git tag
       - name: Check version matches Git tag
         env:
           GITHUB_REF: ${{ github.ref }}
         run: |
-          # Extract tag (e.g. "v0.5.31" → "0.5.31")
-          TAG="${GITHUB_REF#refs/tags/v}"
-          # Extract your package version
-          PKG_VER=$(python -c "import importlib.metadata as m; print(m.version('uk-midas-client'))")
-          echo "Git tag: $TAG, package version: $PKG_VER"
+          TAG="${GITHUB_REF#refs/tags/v}"   # strip leading "v"
+          PKG_VER=$(python -c "import importlib.metadata as m; print(m.version('uk-midas-client'))" || true)
+          echo "Git tag:       $TAG"
+          echo "Package ver:   $PKG_VER"
           if [ "$TAG" != "$PKG_VER" ]; then
-            echo "::error ::Version mismatch! Tag is $TAG but package is $PKG_VER"
+            echo "::error ::Version mismatch – tag is $TAG but package is $PKG_VER"
             exit 1
           fi
 
-      - name: Build and publish
+      - name: Build distributions
+        run: python -m build 
+
+      - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          user: __token__
-          password: ${{ secrets.PYPI_API_TOKEN }}
