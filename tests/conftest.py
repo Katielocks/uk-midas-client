@@ -9,7 +9,6 @@ import pandas as pd
 import pytest
 
 
-# ----------  sample raw CSV used by several tests ----------
 @pytest.fixture
 def raw_badc_csv() -> str:
     return (
@@ -22,15 +21,12 @@ def raw_badc_csv() -> str:
     )
 
 
-# ----------  a tmp cache directory ----------
 @pytest.fixture
 def tmp_cache(tmp_path) -> Path:
     p = tmp_path / "cache"
     p.mkdir()
     return p
 
-
-# ----------  a minimal replacement for settings ----------
 @pytest.fixture(autouse=True)
 def _patch_settings(monkeypatch, tmp_cache):
     dummy = SimpleNamespace(
@@ -46,7 +42,6 @@ def _patch_settings(monkeypatch, tmp_cache):
     monkeypatch.setattr(midas_mod, "settings", dummy, raising=False)
 
 
-# ----------  stub BallTree so we don't need sklearn ----------
 class _DummyTree:
     def __init__(self, *_, **__):
         pass
