@@ -41,6 +41,44 @@ if not logger.hasHandlers():
     logger.addHandler(_h)
     logger.setLevel(logging.INFO)
 
+def _validate_years(years: range | list[str], version: str | None = None) -> list[str] | None:
+    """
+    Ensure the requested years are available in the MIDAS dataset based on the version.
+
+    Parameters:
+        years: A range or list of year strings to validate.
+        version: The MIDAS version in 'YYYY' format (e.g., '2024').
+
+    Returns:
+        A filtered list of year strings if valid years remain; otherwise, None.
+    """
+    if version is None and settings and settings.midas.version:
+        version = settings.midas.version
+    max_year = int(version[:4]) - 1
+
+    if any(int(yr) > max_year for yr in years):
+        logging.warning(
+            "Requested years exceed the dataset limit for MIDAS version %s; "
+            "the latest available year is %d.",
+            version, max_year
+        )
+
+        if all(int(yr) > max_year for yr in years):
+            logging.error(
+                "All requested years are beyond %d; returning no data.",
+                max_year
+            )
+            return None
+        
+        filtered = [yr for yr in years if int(yr) <= max_year]
+        logging.info(
+            "Truncated years to available range: %s",
+            ", ".join(filtered)
+        )
+        return filtered
+    
+    return list(years)
+
 def _fetch_meta(session: MidasSession, tbl: str) -> pd.DataFrame:
     """Download station metadata for *tbl*, with an in-memory cache.
 
@@ -107,6 +145,13 @@ def download_station_year(
     pd.DataFrame
         DataFrame containing the requested station-year data, limited to specified columns.
     """
+
+    year = _validate_years([year])
+    if not year:
+        logging.error("Valid year provided; returning empty DataFrame.")
+        return pd.DataFrame()
+
+        
     if table not in _TABLE_CODES:
         logger.error("Unknown MIDAS table %s", table)
         raise KeyError(f"Unknown MIDAS table '{table}'")
@@ -143,6 +188,8 @@ def download_station_year(
     if "src_id" in df.columns:
         df["src_id"] = df["src_id"].astype("Int64").astype(int).astype(str).str.zfill(5)
     return df
+
+
 
 def download_locations(
     locations: pd.DataFrame | dict[str, tuple[float, float]],
@@ -183,6 +230,13 @@ def download_locations(
         Consolidated mapping of locations and years to nearest station IDs.
         Columns include 'loc_id', 'year', and one 'src_id_<table>' per table.
     """
+    years = _validate_years(years)
+    if not years:
+        logging.error("No valid years provided; returning empty DataFrame.")
+        return pd.DataFrame()
+
+
+
     logger.info("Starting bulk download for %d years and %d tables",
                 len(years), len(tables or _TABLE_CODES))
 
