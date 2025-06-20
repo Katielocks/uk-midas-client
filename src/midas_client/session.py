@@ -16,7 +16,6 @@ log = logging.getLogger(__name__)
 
 def _read_badc_csv(raw: str, *, sep: str = ",", parse_dates: list[str] | None = None) -> pd.DataFrame:
     buf = StringIO(raw)
-    print(raw)
     for n, line in enumerate(buf):
         if line.strip().lower() == "data":
             header = next(buf).rstrip("\n")
