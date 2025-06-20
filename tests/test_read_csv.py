@@ -13,8 +13,8 @@ def test_parses_simple_csv(raw_badc_csv):
     assert df.shape == (2, 2)
     assert list(df.columns) == ["timestamp", "value"]
     assert df["timestamp"].tolist() == [
-        "2025-01-01 00:00",
-        "2025-01-02 00:00",
+        "2020-01-01 00:00",
+        "2020-01-02 00:00",
     ]
 
 

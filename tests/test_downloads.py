@@ -43,7 +43,7 @@ def test_download_station_year(monkeypatch, tmp_cache):
     session = _dummy_session(monkeypatch)
 
     df = midas_mod.download_station_year(
-        "TD", station_id="00123", year=2025, session=session
+        "TD", station_id="00123", year=2020, session=session
     )
     assert list(df.columns) == ["meto_stmp_time", "obs"]
     assert len(df) == 2
@@ -60,7 +60,7 @@ def test_download_locations(monkeypatch, tmp_cache):
 
     out = midas_mod.download_locations(
         locs,
-        years=range(2025, 2026),
+        years=range(2020, 2021),
         tables={"TD":[]},
         k=1,
         session=session,
@@ -70,6 +70,6 @@ def test_download_locations(monkeypatch, tmp_cache):
 
     assert len(out) == 1
     assert out.loc_id.iloc[0] == "here"
-    assert out.year.iloc[0] == 2025
-    assert Path(tmp_cache/ "TD_2025.csv").exists()
+    assert out.year.iloc[0] == 2020
+    assert Path(tmp_cache/ "TD_2020.csv").exists()
     assert Path(tmp_cache/ "station_map.json").exists()

@@ -14,8 +14,8 @@ def raw_badc_csv() -> str:
         "ignored header line\n"
         "DATA\n"
         "timestamp , value\n"
-        "2025-01-01 00:00,1.1\n"
-        "2025-01-02 00:00,2.2\n"
+        "2020-01-01 00:00,1.1\n"
+        "2020-01-02 00:00,2.2\n"
         "end data\n"
     )
 

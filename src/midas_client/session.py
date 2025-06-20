@@ -164,6 +164,7 @@ class MidasSession:
         """Download and parse a CSV file that requires CEDA auth."""
 
         headers = {"Authorization": f"Bearer {self.token}"}
+        resp = None
 
         for attempt in range(1, max_retries + 1):
             try:
