@@ -26,20 +26,9 @@ _TABLE_CODES : Dict[str,str] = {
     }
 
 
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 cfg = settings.midas
 
-
-if not logger.hasHandlers():
-    _h = logging.StreamHandler()
-    _h.setFormatter(
-        logging.Formatter(
-            fmt="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
-        )
-    )
-    logger.addHandler(_h)
-    logger.setLevel(logging.INFO)
 
 def _validate_years(years: range | list[str], version: str | None = None) -> list[str] | None:
     """
@@ -103,17 +92,17 @@ def _fetch_meta(session: MidasSession, tbl: str) -> pd.DataFrame:
     )
 
     if meta_url in _META_CACHE:
-        logger.debug("Using cached metadata for %s", tbl)
+        log.debug("Using cached metadata for %s", tbl)
         return _META_CACHE[meta_url]
 
     meta_df = session.get_csv(meta_url)
 
     if meta_df.empty:
-        logger.error("Received empty metadata for table '%s' – aborting", tbl)
+        log.error("Received empty metadata for table '%s' – aborting", tbl)
         raise RuntimeError(f"Could not download station metadata for table '{tbl}'")
 
     _META_CACHE[meta_url] = meta_df
-    logger.debug("Cached metadata for %s (rows=%d)", tbl, len(meta_df))
+    log.debug("Cached metadata for %s (rows=%d)", tbl, len(meta_df))
     return meta_df
 
 def download_station_year(
@@ -153,7 +142,7 @@ def download_station_year(
 
         
     if table not in _TABLE_CODES:
-        logger.error("Unknown MIDAS table %s", table)
+        log.error("Unknown MIDAS table %s", table)
         raise KeyError(f"Unknown MIDAS table '{table}'")
 
     session = session or MidasSession()
@@ -177,13 +166,14 @@ def download_station_year(
     df = session.get_csv(data_url, parse_dates=["meto_stmp_time"])
 
     if df.empty:
-        logger.warning(
+        log.warning(
             "No data for table=%s, station=%s, year=%d", table, station_id, year
         )
         return df
     if columns:
-        if "src_id" not in columns:
-            columns.insert(0, "src_id")
+        for idx, col in enumerate(("src_id", "meto_stmp_time")):
+            if col not in columns:
+                columns.insert(idx, col)
         df = df[columns]
     if "src_id" in df.columns:
         df["src_id"] = df["src_id"].astype("Int64").astype(int).astype(str).str.zfill(5)
@@ -237,7 +227,7 @@ def download_locations(
 
 
 
-    logger.info("Starting bulk download for %d years and %d tables",
+    log.info("Starting bulk download for %d years and %d tables",
                 len(years), len(tables or _TABLE_CODES))
 
     session = session or MidasSession()
@@ -271,16 +261,16 @@ def download_locations(
         loc_df.columns = ["loc_id", "lat", "long"]
 
     if loc_df.empty:
-        logger.error("`locations` is empty – nothing to download.")
+        log.error("`locations` is empty – nothing to download.")
         raise ValueError("`locations` is empty – nothing to download.")
 
-    logger.debug("Locations to process: %s", loc_df.loc_id.tolist())
+    log.debug("Locations to process: %s", loc_df.loc_id.tolist())
     locs_rad = np.deg2rad(loc_df[["lat", "long"]].values)
 
     rows: dict[tuple[str, int], dict[str, object]] = defaultdict(dict)
     outputs = []
     for tbl in tables:
-        logger.info("Processing table '%s'", tbl)
+        log.info("Processing table '%s'", tbl)
         db_slug = _TABLE_CODES[tbl]
         version = cfg.version
         meta_url = (
@@ -290,7 +280,7 @@ def download_locations(
 
         meta = session.get_csv(meta_url)
         if meta.empty:
-            logger.warning("Empty metadata for %s – skipping", tbl)
+            log.warning("Empty metadata for %s – skipping", tbl)
             continue
 
         meta_num = meta[
@@ -304,10 +294,10 @@ def download_locations(
 
         for yr in years:
             yr = int(yr)
-            logger.debug("Finding nearest stations for year %d (table=%s)", yr, tbl)
+            log.debug("Finding nearest stations for year %d (table=%s)", yr, tbl)
             good_mask = (meta_num.first_year <= yr) & (meta_num.last_year >= yr)
             if not good_mask.any():
-                logger.debug("No active stations for %s in %d", tbl, yr)
+                log.debug("No active stations for %s in %d", tbl, yr)
                 continue
 
             sub_meta = meta_num[good_mask]
@@ -325,12 +315,12 @@ def download_locations(
 
                 nearest_station = int(sub_meta.iloc[idxs[loc_idx, 0]]["src_id"])
                 rows[key][f"src_id_{tbl}"] = str(nearest_station).zfill(5)
-            logger.debug("Mapped nearest stations for %d locations (yr=%d, tbl=%s)",
+            log.debug("Mapped nearest stations for %d locations (yr=%d, tbl=%s)",
                          len(loc_df), yr, tbl)
 
             frames = []
             nearest_srcs = {str(sub_meta.iloc[idx, 0]) for idx in idxs[:, 0]}
-            logger.info("Downloading %d station-years for %s in %d", len(nearest_srcs), tbl, yr)
+            log.info("Downloading %d station-years for %s in %d", len(nearest_srcs), tbl, yr)
             cols = None
             if isinstance(tables,dict):
                 cols = tables[tbl]
@@ -355,7 +345,7 @@ def download_locations(
     consolidated = pd.DataFrame(rows.values()).sort_values(["loc_id", "year"]).reset_index(drop=True)
     if not consolidated.empty and out_dir:
         json_path = out_dir / "station_map.json"
-        logger.info("Writing station map to %s", json_path)
+        log.info("Writing station map to %s", json_path)
         write_cache(json_path,consolidated)
         return consolidated
     else:
