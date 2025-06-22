@@ -31,14 +31,19 @@ log = logging.getLogger(__name__)
 
 def _validate_years(years: range | list[str], version: str | None = None) -> list[str] | None:
     """
-    Ensure the requested years are available in the MIDAS dataset based on the version.
+    Validate that the requested years exist for the current MIDAS version.
+    Parameters
+    ----------
+    years : range | list[str]
+        Range or list of years to check.
+    version : str, optional
+        MIDAS version in ``YYYYMM`` format. If ``None`` the version from
+        :data:`settings` is used.
 
-    Parameters:
-        years: A range or list of year strings to validate.
-        version: The MIDAS version in 'YYYY' format (e.g., '2024').
-
-    Returns:
-        A filtered list of year strings if valid years remain; otherwise, None.
+   Returns
+    -------
+    list[str] | None
+        Filtered list of valid years or ``None`` if none are within range.
     """
     if  settings and settings.midas:
         version = version or settings.midas.version
@@ -67,21 +72,23 @@ def _validate_years(years: range | list[str], version: str | None = None) -> lis
     
     return list(years)
 
-def _fetch_meta(tbl: str, *, session: MidasSession = None, version:str = None) -> pd.DataFrame:
-    """Download station metadata for *tbl*, with an in-memory cache.
+def _fetch_meta(tbl: str, *, session: MidasSession = None, version: str | None = None) -> pd.DataFrame:
+    """Download station metadata for ``tbl`` with caching.
 
     Parameters
     ----------
-    session
-        Active ``MidasSession`` used for HTTP requests.
-    tbl
-        table key looked up in
-        ``_TABLE_CODES``.
+    tbl : str
+        Table key looked up in :data:`_TABLE_CODES`.
+    session : MidasSession, optional
+        Active session used for the HTTP requests. A new one is created when
+        omitted.
+    version : str, optional
+        Data version identifier. Defaults to the value from :data:`settings`.
 
     Returns
     -------
     pandas.DataFrame
-        The midas station metadata contains date of service and location of all stations, given tbl code.
+        Metadata for all stations in the specified table.
     """
 
     session = session or MidasSession()
@@ -118,26 +125,31 @@ def download_station_year(
     session: MidasSession | None = None,
     version: str | None = None
 ) -> pd.DataFrame:
-    """
-    Download data for a single station and year, returning a trimmed DataFrame.
+    """Download data for a single station and year.
 
     Parameters
     ----------
     table : str
-        Key of the MIDAS table to download (must exist in _TABLE_CODES).
+        Key of the MIDAS table to download.
     station_id : str
-        Identifier of the station to download data for.
+        Identifier of the station.
     year : int
-        Year of the station data to fetch.
-    columns : list[str], optional
-        Specific columns to retain; defaults to columns from settings.
+        Year of observations to fetch.
+    columns : list[str] | None, optional
+        Specific columns to retain. If ``None``, columns defined in
+        ``settings.midas.tables`` for the given table will be used if
+        available. Pass an empty list to keep all columns.
+
     session : MidasSession, optional
-        Active session for HTTP requests; a new session is created if not provided.
+        Session to use for HTTP requests. A new one is created when ``None``.
+    version : str, optional
+        Data version identifier.
 
     Returns
     -------
-    pd.DataFrame
-        DataFrame containing the requested station-year data, limited to specified columns.
+        pd.DataFrame
+        DataFrame containing the requested station-year data limited to the
+        specified columns.
     """
 
     year = _validate_years([year])[0]
@@ -176,6 +188,9 @@ def download_station_year(
             "No data for table=%s, station=%s, year=%d", table, station_id, year
         )
         return df
+    if columns is None and settings and settings.midas:
+        columns = settings.midas.tables.get(table)
+
     if columns:
         for idx, col in enumerate(("src_id", "meto_stmp_time")):
             if col not in columns:
@@ -187,10 +202,23 @@ def download_station_year(
 
 
 def _years_for_row(row, allowed: set[int]) -> list[int]:
-        """Return the list of years to fetch for a single row."""
-        span = range(int(row.first_year), int(row.last_year) + 1)
-        return [y for y in span if not allowed or y in allowed]
+    """Return the list of years to download for a metadata row.
 
+    Parameters
+    ----------
+    row : pandas.Series
+        Station metadata row containing ``first_year`` and ``last_year``.
+    allowed : set[int]
+        Years explicitly requested; an empty set allows all available years.
+
+    Returns
+    -------
+    list[int]
+        Years that should be downloaded for the row.
+    """
+
+    span = range(int(row.first_year), int(row.last_year) + 1)
+    return [y for y in span if not allowed or y in allowed]
 
 
 def download_by_counties(
@@ -203,23 +231,30 @@ def download_by_counties(
     session: MidasSession | None = None,
     version: str | None = None
 ) -> dict[str, dict[str, pd.DataFrame]]:
-    """
-    Download data for specified counties and tables, optionally restricted to certain years,
-    and save station info files per table/year under each county folder, including
-    station_latitude and station_longitude in each cached file.
+    """Download data for stations grouped by county.
 
-    Args:
-        counties: Mapping of county names to list of src_id codes. If the list is empty, all codes in the county will be used.
-        tables: List of table names to process.
-        years: Range or list of years to download; if None, downloads all available years for each station.
-        out_dir: Directory to save cached data files.
-        out_fmt: File format extension (e.g. 'csv', 'parquet').
-        session: Optional MidasSession for requests.
-        version: Optional data version identifier.
+    Parameters
+    ----------
+    counties : dict[str, list[str]]
+        Mapping of county name to a list of ``src_id`` codes. An empty list
+        downloads all stations in the county.
+    years : range | Sequence[int] | None, optional
+        Years to download. ``None`` downloads all available years per station.
+    tables : Sequence[str], optional
+        Observation table keys to process.
+    out_dir : str | Path, optional
+        Directory in which cached files are written.
+    out_fmt : str, optional
+        Cache file format (e.g. ``'csv'`` or ``'parquet'``).
+    session : MidasSession, optional
+        Session used for HTTP requests.
+    version : str, optional
+        Data version identifier.
 
-    Returns:
-        A nested dict of metadata DataFrames: results[table][county] = filtered metadata DataFrame.
-    """
+    Returns
+    -------
+    dict[str, dict[str, pandas.DataFrame]]
+        Mapping of table and county to the filtered station metadata used. """
     if not counties:
         raise ValueError("The 'counties' dictionary must not be empty.")
 
@@ -307,8 +342,17 @@ def download_by_counties(
 
                 for year, group in df_years.groupby("year"):
 
+                    cols = tables[tbl] if isinstance(tables, dict) else None
+
                     frames = [
-                        download_station_year(tbl, src_id, year,columns = tables[tbl], session=session, version=version)
+                        download_station_year(
+                            tbl,
+                            src_id,
+                            year,
+                            columns=cols,
+                            session=session,
+                            version=version,
+                        )
                         for src_id in group["src_id"]
                     ]
                     if not frames:
@@ -333,34 +377,33 @@ def download_locations(
     session: MidasSession | None = None,
     version: str | None = None
 ) -> pd.DataFrame | list[pd.DataFrame,list[pd.DataFrame,pd.DataFrame]]:
-    """
-    Bulk-download data for multiple locations and years by finding nearest stations.
-
-    For each location and year, the k nearest active stations for each table are identified,
-    data is downloaded, and a consolidated station map is returned.
+    """Bulk-download data for multiple locations.
 
     Parameters
     ----------
-    locations : pd.DataFrame or dict
-        DataFrame with columns ['loc_id', 'lat', 'long'] or dict mapping loc_id to (lat, long).
+    locations : pandas.DataFrame or dict[str, tuple[float, float]]
+        Table of ``loc_id``/latitude/longitude or a mapping from ``loc_id`` to
+        coordinates.
     years : range
-        Range of years for which to download data.
-    tables : list[str], optional
-        Subset of observation table keys to process; defaults to all tables in settings.
-    k : int
-        Number of nearest stations to consider per location (default is 3).
-    session : MidasSession, optional
-        Active session for HTTP requests; created if not provided.
+        Years for which to retrieve observations.
+    tables : dict[str, list[str]], optional
+        Observation tables to query and their column selections.
+    k : int, optional
+        Number of nearest stations considered for each location. Defaults to ``3``.
     out_dir : str or Path, optional
-        Directory to save downloaded data and metadata; defaults to settings.cache_dir.
+        Directory used for cached outputs.
     out_fmt : str, optional
-        File format of cached data; defaults to setting.cache_format
+        Cache file format.
+    session : MidasSession, optional
+        Session for HTTP requests.
+    version : str, optional
+        Data version identifier.
 
     Returns
     -------
-    pd.DataFrame
-        Consolidated mapping of locations and years to nearest station IDs.
-        Columns include 'loc_id', 'year', and one 'src_id_<table>' per table.
+    pandas.DataFrame
+        Mapping of location/year pairs to the chosen station IDs. When
+        ``out_dir`` is ``None`` the downloaded data frames are also returned.
     """
     years = _validate_years(years)
 

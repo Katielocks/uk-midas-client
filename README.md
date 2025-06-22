@@ -1,9 +1,10 @@
 # MIDAS Client
 ## Features
 * **MIDAS tables** – supports all hourly / daily rain, temperature, weather, wind, radiation & soil temp tables (`RH`, `RD`, `TD`, `WH`, `WD`, `WM`, `RY`, `SH`).  
-* **Helper functions** – `download_station_year()` for a single station/year, or `download_locations()` to bulk-grab multiple nearest stations for many locations.  
+* **Helper functions** – `download_station_year()` for a single station/year, `download_locations()` to bulk-grab multiple nearest stations for many locations, and `download_by_counties()` for downloading groups of counties.
+ 
 * **Cache Location** – current config defaults to `data/raw/weather/` (edit in settings).
-* **Cache Format** - customizable cashe format; supports `csv`, `parquet`, `json` . Defaults to csv.
+* **Cache Format** - customizable cache format; supports `csv`, `parquet`, `json`. Defaults to csv.
 * **Config: JSON** – tweak dataset version, default columns, cache directory, etc. in `settings.json`.  
 * **CEDA auth** – automatically gets a bearer token using your `CEDA_USER` and `CEDA_PASS` env vars. 
 
@@ -14,7 +15,11 @@
 pip install uk-midas-client
 ```
 ```python
-from midas_client import download_station_year, download_locations
+from midas_client import (
+    download_station_year,
+    download_locations,
+    download_by_counties,
+)
 ```
 
 Set your CEDA credentials using either username/password:
@@ -33,7 +38,11 @@ export CEDA_TOKEN="••••••••..."
 ### Fetch a single station-year
 
 ```python
-df = download_station_year("TD", station_id="03743", year=2020)
+df = download_station_year(
+    table="TD",
+    station_id="03743",
+    year=2020,
+)
 print(df.head())
 ```
 
@@ -79,9 +88,14 @@ locs = pd.DataFrame({
 
 station_map = download_locations(
     locs,
+    locations=locs,
     years=range(2021, 2022),
-    tables={"TD": ["max_air_temp", "min_air_temp"]}
+    tables={"TD": ["max_air_temp", "min_air_temp"]},
 )
+
+results = download_by_counties(
+    counties={"Hampshire": []},
+   tables={"TD": ["max_air_temp", "min_air_temp"]},
 ```
 ## Status
 This project is currently in a pre-1.0 prototype stage and may change without notice.
