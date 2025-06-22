@@ -2,7 +2,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 from collections import defaultdict
-from typing import Callable,Union,Dict
+from typing import Callable,Union,Dict,Sequence
 import numpy as np
 import pandas as pd
 from sklearn.neighbors import BallTree
@@ -27,7 +27,6 @@ _TABLE_CODES : Dict[str,str] = {
 
 
 log = logging.getLogger(__name__)
-cfg = settings.midas
 
 
 def _validate_years(years: range | list[str], version: str | None = None) -> list[str] | None:
@@ -41,8 +40,8 @@ def _validate_years(years: range | list[str], version: str | None = None) -> lis
     Returns:
         A filtered list of year strings if valid years remain; otherwise, None.
     """
-    if version is None and settings and settings.midas.version:
-        version = settings.midas.version
+    if  settings and settings.midas:
+        version = version or settings.midas.version
     max_year = int(version[:4]) - 1
 
     if any(int(yr) > max_year for yr in years):
@@ -68,7 +67,7 @@ def _validate_years(years: range | list[str], version: str | None = None) -> lis
     
     return list(years)
 
-def _fetch_meta(session: MidasSession, tbl: str) -> pd.DataFrame:
+def _fetch_meta(tbl: str, *, session: MidasSession = None, version:str = None) -> pd.DataFrame:
     """Download station metadata for *tbl*, with an in-memory cache.
 
     Parameters
@@ -84,8 +83,13 @@ def _fetch_meta(session: MidasSession, tbl: str) -> pd.DataFrame:
     pandas.DataFrame
         The midas station metadata contains date of service and location of all stations, given tbl code.
     """
+
+    session = session or MidasSession()
+    if settings and settings.midas:
+        version = version or settings.midas.version
+
     db_slug = _TABLE_CODES[tbl]
-    version = cfg.version
+
     meta_url = (
         f"{_BASE_URL}/{db_slug}/dataset-version-{version}/"
         f"{_META_FMT.format(db=db_slug, ver=version)}"
@@ -112,6 +116,7 @@ def download_station_year(
     *,
     columns: list[str] | None = None,
     session: MidasSession | None = None,
+    version: str | None = None
 ) -> pd.DataFrame:
     """
     Download data for a single station and year, returning a trimmed DataFrame.
@@ -135,7 +140,7 @@ def download_station_year(
         DataFrame containing the requested station-year data, limited to specified columns.
     """
 
-    year = _validate_years([year])
+    year = _validate_years([year])[0]
     if not year:
         logging.error("Valid year provided; returning empty DataFrame.")
         return pd.DataFrame()
@@ -146,9 +151,10 @@ def download_station_year(
         raise KeyError(f"Unknown MIDAS table '{table}'")
 
     session = session or MidasSession()
-    version = cfg.version
+    if settings.midas and settings.midas.version:
+        version = version or settings.midas.version
 
-    meta = _fetch_meta(session, table)
+    meta = _fetch_meta(table,session=session)
     if meta.empty:
         raise RuntimeError("Could not download station metadata")
     station_id = station_id.zfill(5)
@@ -180,16 +186,152 @@ def download_station_year(
     return df
 
 
+def _years_for_row(row, allowed: set[int]) -> list[int]:
+        """Return the list of years to fetch for a single row."""
+        span = range(int(row.first_year), int(row.last_year) + 1)
+        return [y for y in span if not allowed or y in allowed]
+
+
+
+def download_by_counties(
+    counties: dict[str, list[str]],
+    years: Union[range, Sequence[int]] = None,
+    tables: Sequence[str] = settings.midas.tables,
+    *,
+    out_dir: Union[str, Path] = settings.cache_dir,
+    out_fmt: str | None = settings.cache_format,
+    session: MidasSession | None = None,
+    version: str | None = None
+) -> dict[str, dict[str, pd.DataFrame]]:
+    """
+    Download data for specified counties and tables, optionally restricted to certain years,
+    and save station info files per table/year under each county folder, including
+    station_latitude and station_longitude in each cached file.
+
+    Args:
+        counties: Mapping of county names to list of src_id codes. If the list is empty, all codes in the county will be used.
+        tables: List of table names to process.
+        years: Range or list of years to download; if None, downloads all available years for each station.
+        out_dir: Directory to save cached data files.
+        out_fmt: File format extension (e.g. 'csv', 'parquet').
+        session: Optional MidasSession for requests.
+        version: Optional data version identifier.
+
+    Returns:
+        A nested dict of metadata DataFrames: results[table][county] = filtered metadata DataFrame.
+    """
+    if not counties:
+        raise ValueError("The 'counties' dictionary must not be empty.")
+
+    out_base = Path(out_dir)
+    out_base.mkdir(parents=True, exist_ok=True)
+
+    session = session or MidasSession()
+
+    if years is None:
+        years_set = None
+    elif isinstance(years, range):
+        years_set = set(years)
+    elif isinstance(years, (list, tuple, set)):
+        years_set = set(int(y) for y in years)
+    elif isinstance(years,str):
+        years_set = [years]
+    else:
+        raise ValueError("`years` must be a range, sequence of ints, or None.")
+
+
+
+    for tbl in tables:
+        try:
+            meta = _fetch_meta(tbl, session=session, version=version)
+        except Exception as e:
+            log.error(f"Failed to fetch metadata for table '{tbl}': {e}")
+            continue
+
+        if "historic_county" not in meta.columns:
+            log.error(f"Table '{tbl}' metadata missing required column 'historic_county'.")
+            continue
+
+
+        available = set(meta["historic_county"].unique())
+        wanted = set(counties.keys()) & available
+        if not wanted:
+            log.warning(f"No requested counties found in table '{tbl}'. Skipping.")
+            continue
+
+        df_filtered = meta[meta["historic_county"].isin(wanted)].copy()
+        grouped = df_filtered.groupby("historic_county")
+
+
+        for county, codes in counties.items():
+            out_county_dir = out_base / county
+            out_county_dir.mkdir(parents=True, exist_ok=True)
+
+            if county not in grouped.groups:
+                log.warning(f"County '{county}' not present in metadata for table '{tbl}'.")
+                continue
+
+            df_county = grouped.get_group(county).copy()
+
+            if codes:
+                if "src_id" not in df_county.columns:
+                    log.error(f"Table '{tbl}' metadata missing 'src_id' column for county '{county}'.")
+                    continue
+
+                df_county = df_county[df_county["src_id"].isin(codes)].copy()
+                if df_county.empty:
+                    log.warning(f"No matching src_id codes {codes} for county '{county}' in table '{tbl}'.")
+                    continue
+
+            if {"src_id", "station_latitude", "station_longitude"}.issubset(df_county.columns):
+                station_map = df_county[["src_id","station_longitude", "station_latitude"]].reset_index(drop=True)
+                map_path = out_county_dir / "station_map.json"
+                write_cache(map_path, station_map)
+            else:
+                log.error(f"Metadata for table '{tbl}', county '{county}' missing latitude/longitude columns.")
+
+
+            if {"first_year", "last_year"}.issubset(df_county.columns):
+                allowed = set(map(int, years_set)) if years_set else None
+
+                df_years = (
+                    df_county
+                    .assign(year=df_county.apply(_years_for_row, axis=1, allowed=allowed))
+                    .explode("year")
+                    .dropna(subset=["year"])
+                    .astype({"year": int})
+                    .loc[:, ["src_id", "year"]]
+                    .sort_values(["src_id", "year"], ignore_index=True)
+                )
+
+
+                for year, group in df_years.groupby("year"):
+
+                    frames = [
+                        download_station_year(tbl, src_id, year,columns = tables[tbl], session=session, version=version)
+                        for src_id in group["src_id"]
+                    ]
+                    if not frames:
+                        continue
+
+                    out_df = pd.concat(frames, ignore_index=True)
+
+
+                    file_path = out_county_dir / f"{tbl}_{year}.{out_fmt}"
+                    write_cache(str(file_path), out_df)
+
+
 
 def download_locations(
     locations: pd.DataFrame | dict[str, tuple[float, float]],
     years: range,
-    tables: dict[str, list[str] ]  = cfg.tables,
+    tables: dict[str, list[str] ]  = settings.midas.tables,
     *,
     k: int = 3,
     out_dir: str | Path | None = settings.cache_dir,
     out_fmt: str | None = settings.cache_format,
-    session: MidasSession | None = None
+    session: MidasSession | None = None,
+    version: str | None = None
 ) -> pd.DataFrame | list[pd.DataFrame,list[pd.DataFrame,pd.DataFrame]]:
     """
     Bulk-download data for multiple locations and years by finding nearest stations.
@@ -221,6 +363,7 @@ def download_locations(
         Columns include 'loc_id', 'year', and one 'src_id_<table>' per table.
     """
     years = _validate_years(years)
+
     if not years:
         logging.error("No valid years provided; returning empty DataFrame.")
         return pd.DataFrame()
@@ -231,6 +374,8 @@ def download_locations(
                 len(years), len(tables or _TABLE_CODES))
 
     session = session or MidasSession()
+    if  settings and settings.midas:
+        version = version or settings.midas.version
 
     if out_dir :
         out_dir = Path(out_dir).expanduser()
@@ -261,8 +406,8 @@ def download_locations(
         loc_df.columns = ["loc_id", "lat", "long"]
 
     if loc_df.empty:
-        log.error("`locations` is empty – nothing to download.")
-        raise ValueError("`locations` is empty – nothing to download.")
+        log.error("`locations` is empty - nothing to download.")
+        raise ValueError("`locations` is empty - nothing to download.")
 
     log.debug("Locations to process: %s", loc_df.loc_id.tolist())
     locs_rad = np.deg2rad(loc_df[["lat", "long"]].values)
@@ -271,16 +416,9 @@ def download_locations(
     outputs = []
     for tbl in tables:
         log.info("Processing table '%s'", tbl)
-        db_slug = _TABLE_CODES[tbl]
-        version = cfg.version
-        meta_url = (
-            f"{_BASE_URL}/{db_slug}/dataset-version-{version}/"
-            f"{_META_FMT.format(db=db_slug, ver=version)}"
-        )
-
-        meta = session.get_csv(meta_url)
+        meta = _fetch_meta(tbl,session=session)
         if meta.empty:
-            log.warning("Empty metadata for %s – skipping", tbl)
+            log.warning("Empty metadata for %s - skipping", tbl)
             continue
 
         meta_num = meta[
@@ -324,7 +462,6 @@ def download_locations(
             cols = None
             if isinstance(tables,dict):
                 cols = tables[tbl]
-
             for src_id in nearest_srcs:
                 df = download_station_year(
                     tbl,
@@ -332,6 +469,7 @@ def download_locations(
                     yr,
                     columns=cols,
                     session=session,
+                    version=version
                 )
                 if not df.empty:
                     frames.append(df)

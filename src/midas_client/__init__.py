@@ -4,7 +4,7 @@ from .config import settings
 setup_logging()
 
 from .session import MidasSession
-from .midas import download_station_year, download_locations
+from .midas import download_station_year, download_locations,download_by_counties
 
 
 __all__ = [
@@ -12,4 +12,5 @@ __all__ = [
     "MidasSession",
     "download_station_year",
     "download_locations",
+    "download_by_counties"
 ]

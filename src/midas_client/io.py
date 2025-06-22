@@ -9,7 +9,7 @@ log = logging.getLogger(__name__)
 _OUTPUT_WRITERS: dict[str, Callable[..., None]] = {
     "csv":     lambda df, p, **kwargs: df.to_csv(p, **kwargs),
     "parquet": lambda df, p, **kwargs: df.to_parquet(p, **kwargs),
-    "json":    lambda df, p, **kwargs: df.to_json(p, **kwargs),
+    "json":    lambda df, p, **kwargs: df.to_json(p,orient="records", indent=2,**kwargs),
 }
 
 def _get_fmt(path: Union[str,Path]) -> str:
