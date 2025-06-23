@@ -23,8 +23,6 @@ You can look it up in three quick ways:
 2. **Interactive maps**  
    * CEDA also publishes KML layers for **Google Earth** – each marker popup shows the `src_id`. Download the layers from the same tools section. 
 
-3. **Community station lists**  
-   * Several open-source projects (e.g. the *MidasData* repo’s `stationList.csv`) maintain CSV lists of station IDs that you can grep or load into a notebook. Always double-check against the CEDA search, as new stations appear regularly.  
 
 
 ## Quick start
