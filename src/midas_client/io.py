@@ -7,8 +7,8 @@ import pandas as pd
 log = logging.getLogger(__name__)
 
 _OUTPUT_WRITERS: dict[str, Callable[..., None]] = {
-    "csv":     lambda df, p, **kwargs: df.to_csv(p, **kwargs),
-    "parquet": lambda df, p, **kwargs: df.to_parquet(p, **kwargs),
+    "csv":     lambda df, p, **kwargs: df.to_csv(p, index=False, **kwargs),
+    "parquet": lambda df, p, **kwargs: df.to_parquet(p, index=False, **kwargs),
     "json":    lambda df, p, **kwargs: df.to_json(p,orient="records", indent=2,**kwargs),
 }
 
